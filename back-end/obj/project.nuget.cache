@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "dgSpecHash": "EClbV7DLkVU=",
+  "success": true,
+  "projectFilePath": "/Users/hajrudin.imamovic/Documents/Projects/Software/tempore-flashcards/back-end/back-end.csproj",
+  "expectedPackageFiles": [
+    "/Users/hajrudin.imamovic/.nuget/packages/microsoft.aspnetcore.openapi/10.0.13/microsoft.aspnetcore.openapi.10.0.13.nupkg.sha512",
+    "/Users/hajrudin.imamovic/.nuget/packages/microsoft.openapi/2.12.2/microsoft.openapi.2.12.2.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1900",
+      "level": "Warning",
+      "message": "Error occurred while getting package vulnerability data: Access to the path '/Users/hajrudin.imamovic/.local/share/NuGet' is denied.",
+      "projectPath": "/Users/hajrudin.imamovic/Documents/Projects/Software/tempore-flashcards/back-end/back-end.csproj",
+      "warningLevel": 1,
+      "filePath": "/Users/hajrudin.imamovic/Documents/Projects/Software/tempore-flashcards/back-end/back-end.csproj",
+      "targetGraphs": []
+    }
+  ]
+}
