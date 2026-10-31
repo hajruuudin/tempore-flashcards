@@ -37,4 +37,4 @@ jobs:
           context: ./frontend
           platforms: linux/arm64
           push: true
-          tags: ${{ secrets.DOCKER__HUB_USERNAME }}/flashcards-frontend:latest
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/flashcards-frontend:latest
