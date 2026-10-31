@@ -9,7 +9,7 @@ import {
 } from "@/types";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_URL || "/api";
 
 // ============================================================================
 // LOCAL STORAGE FALLBACK STORE (Enables instant offline PWA & standalone use)
