@@ -4,7 +4,7 @@ http://130.61.129.203 {
     }
 
     handle /health {
-        reverse_proxy backend:5001
+        reverse_proxy backend:5000
     }
 
     handle /api/* {
