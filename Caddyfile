@@ -1,0 +1,13 @@
+http://130.61.129.203 {
+    handle /api/* {
+        reverse_proxy backend:5000
+    }
+
+    handle /health {
+        reverse_proxy backend:5001
+    }
+
+    handle /api/* {
+        reverse_proxy frontend:3000
+    }
+}

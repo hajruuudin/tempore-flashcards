@@ -52,7 +52,7 @@ jobs:
           host: ${{ secrets.ORACLE_HOST }}
           username: ${{ secrets.ORACLE_USERNAME }}
           key: ${{ secrets.ORACLE_KEY }}
-          source: "docker-compose.yml"
+          source: "docker-compose.yml, Caddyfile"
           target: "/home/opc/flashcards"
 
       - name: Deploy Docker Containers
