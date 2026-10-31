@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FlashcardsPWA MongoDB Schema",
+  "description": "JSON Schema definitions for the MongoDB collections used by the Flashcards PWA.",
+  "definitions": {
+    "folders": {
+      "bsonType": "object",
+      "required": ["name", "createdAt", "updatedAt"],
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "name": {
+          "bsonType": "string",
+          "description": "Display name of the folder used to organize decks."
+        },
+        "description": {
+          "bsonType": ["string", "null"],
+          "description": "Optional description of the folder."
+        },
+        "color": {
+          "bsonType": "string",
+          "description": "Optional theme token (e.g., wine-plum, smoky-rose, almond-silk, bone, silver)."
+        },
+        "createdAt": { "bsonType": "date" },
+        "updatedAt": { "bsonType": "date" }
+      }
+    },
+    "decks": {
+      "bsonType": "object",
+      "required": ["name", "createdAt", "updatedAt"],
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "name": {
+          "bsonType": "string",
+          "description": "Name of the flashcard deck."
+        },
+        "description": {
+          "bsonType": ["string", "null"],
+          "description": "Optional deck summary."
+        },
+        "folderId": {
+          "bsonType": ["objectId", "null"],
+          "description": "Reference to folders._id if organized inside a folder, or null for root."
+        },
+        "createdAt": { "bsonType": "date" },
+        "updatedAt": { "bsonType": "date" },
+        "lastReviewedAt": { "bsonType": ["date", "null"] }
+      }
+    },
+    "cards": {
+      "bsonType": "object",
+      "required": ["deckId", "front", "back", "tags", "createdAt", "updatedAt"],
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "deckId": {
+          "bsonType": "objectId",
+          "description": "Reference to decks._id."
+        },
+        "front": {
+          "bsonType": "string",
+          "description": "Prompt / question side of the flashcard."
+        },
+        "back": {
+          "bsonType": "string",
+          "description": "Answer side of the flashcard (used for both standard flip and exact-match typing review)."
+        },
+        "tags": {
+          "bsonType": "array",
+          "items": { "bsonType": "string" },
+          "description": "List of lowercase tags associated with the card."
+        },
+        "reviewCount": { "bsonType": "int" },
+        "hardCount": { "bsonType": "int" },
+        "normalCount": { "bsonType": "int" },
+        "easyCount": { "bsonType": "int" },
+        "exactMatchCorrectCount": { "bsonType": "int" },
+        "exactMatchAttemptCount": { "bsonType": "int" },
+        "lastDifficulty": {
+          "bsonType": ["string", "null"],
+          "enum": ["Hard", "Normal", "Easy", null]
+        },
+        "createdAt": {
+          "bsonType": "date",
+          "description": "UTC timestamp when the card was added (used for display and 'added today' statistics)."
+        },
+        "updatedAt": { "bsonType": "date" },
+        "lastReviewedAt": { "bsonType": ["date", "null"] }
+      }
+    },
+    "review_logs": {
+      "bsonType": "object",
+      "required": ["deckId", "cardId", "mode", "rating", "reviewedAt"],
+      "properties": {
+        "_id": { "bsonType": "objectId" },
+        "deckId": { "bsonType": "objectId" },
+        "cardId": { "bsonType": "objectId" },
+        "mode": {
+          "bsonType": "string",
+          "enum": ["Standard", "ExactMatch"],
+          "description": "Whether the review was a standard flip or exact-match typing review."
+        },
+        "rating": {
+          "bsonType": "string",
+          "enum": ["Hard", "Normal", "Easy"],
+          "description": "Difficulty rating assigned to the card."
+        },
+        "typedAnswer": {
+          "bsonType": ["string", "null"],
+          "description": "The user's typed input during ExactMatch mode."
+        },
+        "isExactMatch": {
+          "bsonType": ["bool", "null"],
+          "description": "True if typedAnswer matched card.back in ExactMatch mode."
+        },
+        "durationMs": {
+          "bsonType": "int",
+          "description": "Time spent answering the card in milliseconds."
+        },
+        "reviewedAt": { "bsonType": "date" }
+      }
+    }
+  }
+}

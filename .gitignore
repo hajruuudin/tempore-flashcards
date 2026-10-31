@@ -1,0 +1,18 @@
+# Frontend dependencies and build output
+frontend/node_modules
+frontend/.next/
+frontend/out/
+
+# .NET build output
+**/bin/
+**/obj/
+
+# IDE and OS files
+**/.idea/
+.DS_Store
+Thumbs.db
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example

@@ -1,0 +1,18 @@
+{
+  "name": "KumbhCards — Minimal Flashcards PWA",
+  "short_name": "KumbhCards",
+  "description": "Minimalist progressive web application for flashcard mastery, exact-match typing review, and deck analytics.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f4ed",
+  "theme_color": "#6c2d45",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
