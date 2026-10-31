@@ -15,9 +15,7 @@ services:
       retries: 5
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: hajruuudin/flashcards-backend:latest
     container_name: flashcards-backend
     restart: unless-stopped
     ports:
@@ -31,9 +29,7 @@ services:
         condition: service_healthy
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: hajruuudin/flashcards-frontend:latest
     container_name: flashcards-frontend
     restart: unless-stopped
     ports:

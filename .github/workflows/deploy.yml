@@ -38,3 +38,30 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/flashcards-frontend:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy Compose file to Oracle Server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_KEY }}
+          source: "docker-compose.yml"
+          target: "/home/opc/flashcards"
+
+      - name: Deploy Docker Containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USERNAME }}
+          key: ${{ secrets.ORACLE_KEY }}
+          script: |
+            cd /home/opc/flashcards
+            docker compose pull
+            docker compose up -d --remove-orphans
