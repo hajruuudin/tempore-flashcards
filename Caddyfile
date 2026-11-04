@@ -1,4 +1,8 @@
-http://130.61.129.203 {
+www.temporeapps.online {
+    redir https://flashcards.temporeapps.online{uri}
+}
+
+flashcards.temporeapps.online {
     handle /api/* {
         reverse_proxy backend:5000
     }
@@ -7,7 +11,7 @@ http://130.61.129.203 {
         reverse_proxy backend:5000
     }
 
-    handle /api/* {
+    handle {
         reverse_proxy frontend:3000
     }
 }
