@@ -1,20 +1,13 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import {
-  PlusCircle,
-  Search,
-  Calendar,
-  Tag,
-  CheckCircle2,
-  AlertCircle,
-  ArrowLeft,
-  Layers,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Search } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
 import { api } from "@/lib/api";
 import { DeckSummary, Flashcard } from "@/types";
+
+const PAGE_SIZE = 30;
 
 function AddCardContent() {
   const searchParams = useSearchParams();
@@ -26,58 +19,48 @@ function AddCardContent() {
 
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
-  const [tagsInput, setTagsInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const loadDecks = async () => {
+  const loadDecks = useCallback(async () => {
     const list = await api.getDecks();
     setDecks(list);
-    const activeId = initialDeckId || list[0]?.id || "";
-    if (!selectedDeckId && activeId) {
-      setSelectedDeckId(activeId);
+    setSelectedDeckId((current) => current || list[0]?.id || "");
+  }, []);
+
+  const loadDeckCards = useCallback(async (deckId: string) => {
+    if (!deckId) {
+      setDeckCards([]);
+      return;
     }
-  };
-
-  const loadDeckCards = async (deckId: string) => {
-    if (!deckId) return;
-    const cards = await api.getCards({ deckId });
-    setDeckCards(cards);
-  };
-
-  useEffect(() => {
-    loadDecks();
+    setDeckCards(await api.getCards({ deckId }));
   }, []);
 
   useEffect(() => {
-    if (selectedDeckId) {
-      loadDeckCards(selectedDeckId);
-    }
-  }, [selectedDeckId]);
+    loadDecks();
+  }, [loadDecks]);
 
-  const currentDeck = useMemo(
-    () => decks.find((d) => d.id === selectedDeckId),
-    [decks, selectedDeckId]
-  );
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+    loadDeckCards(selectedDeckId);
+  }, [selectedDeckId, loadDeckCards]);
 
-  // Calculate how many cards were added to this deck today
-  const addedTodayCount = useMemo(() => {
+  const addedToday = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
-    return deckCards.filter((c) => c.createdAt.slice(0, 10) === todayStr)
-      .length;
+    return deckCards.filter((c) => c.createdAt.slice(0, 10) === todayStr).length;
   }, [deckCards]);
 
-  // Live duplicate / existing card search: checks both explicit search query AND current Front input
-  const matchingExistingCards = useMemo(() => {
-    const effectiveQuery = (searchQuery.trim() || front.trim()).toLowerCase();
-    if (!effectiveQuery) return deckCards.slice(0, 8);
+  const filteredCards = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return deckCards;
     return deckCards.filter(
       (c) =>
-        c.front.toLowerCase().includes(effectiveQuery) ||
-        c.back.toLowerCase().includes(effectiveQuery) ||
-        c.tags.some((t) => t.toLowerCase().includes(effectiveQuery))
+        c.front.toLowerCase().includes(q) ||
+        c.back.toLowerCase().includes(q) ||
+        c.tags.some((t) => t.toLowerCase().includes(q))
     );
-  }, [deckCards, searchQuery, front]);
+  }, [deckCards, searchQuery]);
 
   const exactDuplicateExists = useMemo(() => {
     if (!front.trim()) return false;
@@ -86,267 +69,162 @@ function AddCardContent() {
     );
   }, [deckCards, front]);
 
+  const flash = (message: string) => {
+    setStatusMessage(message);
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDeckId || !front.trim() || !back.trim()) return;
 
-    const tags = tagsInput
-      .split(/[;,]/)
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean);
-
-    await api.createCard({
-      deckId: selectedDeckId,
-      front,
-      back,
-      tags,
-    });
-
+    await api.createCard({ deckId: selectedDeckId, front, back, tags: [] });
     setFront("");
     setBack("");
-    setTagsInput("");
-    setStatusMessage("Flashcard added to deck!");
-    setTimeout(() => setStatusMessage(null), 3000);
+    flash("Flashcard added to deck!");
+    await Promise.all([loadDeckCards(selectedDeckId), loadDecks()]);
+  };
 
+  const handleDelete = async (card: Flashcard) => {
+    if (!confirm(`Delete the card "${card.front}"?`)) return;
+    await api.deleteCard(card.id);
     await Promise.all([loadDeckCards(selectedDeckId), loadDecks()]);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header & Deck Today Stats Overview */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-silver-500 hover:text-wine-plum-700"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Homescreen</span>
-          </Link>
-          <h1 className="mt-1 text-2xl font-bold text-silver-900">
-            Add Flashcards
-          </h1>
-          <p className="text-xs text-silver-600">
-            Create front &amp; back cards while checking existing cards in real
-            time to prevent duplicates.
-          </p>
-        </div>
+      <PageHeader eyebrow="Add Cards" title="Add New cards to deck" />
 
-        {/* Stats Badge: How many cards were added to this deck today */}
-        <div className="flex items-center gap-3 rounded-2xl border border-wine-plum-200 bg-wine-plum-50/70 px-4 py-3">
-          <div className="rounded-xl bg-wine-plum-700 p-2 text-bone-50">
-            <Calendar className="h-4 w-4" />
-          </div>
-          <div>
-            <span className="block text-[11px] font-semibold uppercase tracking-wider text-wine-plum-700">
-              Added to Deck Today
-            </span>
-            <span className="text-lg font-bold text-wine-plum-900">
-              {addedTodayCount} {addedTodayCount === 1 ? "card" : "cards"}{" "}
-              <span className="text-xs font-normal text-wine-plum-700">
-                ({deckCards.length} total in {currentDeck?.name || "deck"})
-              </span>
-            </span>
-          </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+        <select
+          aria-label="Select deck"
+          value={selectedDeckId}
+          onChange={(e) => setSelectedDeckId(e.target.value)}
+          className="tf-input cursor-pointer py-3.5 [&>option]:bg-tf-panel"
+        >
+          {decks.length === 0 && <option value="">No decks yet</option>}
+          {decks.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name} ({d.totalCards} cards)
+            </option>
+          ))}
+        </select>
+        <div className="tf-tile flex min-w-[170px] flex-col items-center justify-center px-4 py-2">
+          <span className="text-2xl font-bold leading-tight text-white">
+            {addedToday}
+          </span>
+          <span className="text-xs font-bold text-white">Card added today</span>
         </div>
       </div>
 
-      {/* Add Card Form */}
       <form
         onSubmit={handleSubmit}
-        className="rounded-2xl border border-bone-200 bg-white/85 p-6 shadow-sm space-y-4"
+        className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto]"
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-silver-700">
-              Target Deck
-            </label>
-            <select
-              value={selectedDeckId}
-              onChange={(e) => setSelectedDeckId(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-bone-300 bg-bone-50 px-3.5 py-2.5 text-sm font-semibold text-silver-900 focus:border-wine-plum-600 focus:outline-none"
-            >
-              {decks.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.totalCards} cards)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-silver-700">
-              Tags (comma or semicolon separated)
-            </label>
-            <div className="relative mt-1.5">
-              <Tag className=" absolute left-3 top-3 h-4 w-4 text-silver-400" />
-              <input
-                type="text"
-                placeholder="e.g. csharp, async, exam-prep"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                className="w-full rounded-xl border border-bone-300 bg-white pl-9 pr-3.5 py-2 text-sm text-silver-900 focus:border-wine-plum-600 focus:outline-none"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Front Input with Live Duplicate Warning */}
         <div>
-          <div className="flex items-center justify-between">
-            <label className="block text-xs font-bold uppercase tracking-wider text-silver-700">
-              Front (Prompt / Question)
-            </label>
-            {exactDuplicateExists && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-smoky-rose-700">
-                <AlertCircle className="h-3.5 w-3.5" />
-                Identical front already exists in this deck!
-              </span>
-            )}
-          </div>
           <textarea
-            rows={2}
             required
-            placeholder="Type the question or prompt... (automatically searches existing cards below)"
+            rows={2}
+            aria-label="Front"
+            placeholder="Front"
             value={front}
             onChange={(e) => setFront(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-bone-300 bg-white p-3.5 text-sm text-silver-900 focus:border-wine-plum-600 focus:outline-none"
+            className="tf-input h-full min-h-[88px] resize-none text-sm"
           />
+          {exactDuplicateExists && (
+            <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-tf-rose">
+              <AlertCircle className="h-3.5 w-3.5" />
+              Identical front already exists in this deck!
+            </p>
+          )}
         </div>
-
-        {/* Back Input */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-silver-700">
-            Back (Exact Answer)
-          </label>
-          <textarea
-            rows={3}
-            required
-            placeholder="Type the answer (used for both standard flip and exact-match typing review)..."
-            value={back}
-            onChange={(e) => setBack(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-bone-300 bg-white p-3.5 text-sm text-silver-900 focus:border-wine-plum-600 focus:outline-none"
-          />
-        </div>
-
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            {statusMessage && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-wine-plum-700">
-                <CheckCircle2 className="h-4 w-4" />
-                {statusMessage}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {selectedDeckId && (
-              <Link
-                href={`/decks/${selectedDeckId}`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-bone-300 bg-bone-50 px-3.5 py-2.5 text-xs font-semibold text-silver-700 hover:bg-bone-100"
-              >
-                <Layers className="h-4 w-4" />
-                <span>View All Deck Cards</span>
-              </Link>
-            )}
-            <button
-              type="submit"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-wine-plum-700 px-5 py-2.5 text-xs font-semibold text-bone-50 shadow-sm transition hover:bg-wine-plum-800"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>Add Flashcard</span>
-            </button>
-          </div>
-        </div>
+        <textarea
+          required
+          rows={2}
+          aria-label="Back"
+          placeholder="Back"
+          value={back}
+          onChange={(e) => setBack(e.target.value)}
+          className="tf-input min-h-[88px] resize-none text-sm"
+        />
+        <button
+          type="submit"
+          disabled={!selectedDeckId}
+          className="tf-btn-primary min-h-[88px] px-8 text-xl"
+        >
+          Add Card
+        </button>
       </form>
 
-      {/* Search & Existing Cards in Deck Section (with Date Added) */}
-      <section className="rounded-2xl border border-bone-200 bg-white/80 p-6 shadow-sm space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-almond-silk-600">
-              Duplicate Check &amp; History
-            </span>
-            <h2 className="text-base font-bold text-silver-900">
-              Search Existing Cards in{" "}
-              <span className="text-wine-plum-700">
-                {currentDeck?.name || "Deck"}
-              </span>
-            </h2>
-          </div>
-
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-silver-400" />
-            <input
-              type="text"
-              placeholder="Search front, back, or tag..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-bone-300 bg-bone-50 pl-9 pr-3 py-2 text-xs text-silver-900 focus:border-wine-plum-600 focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {matchingExistingCards.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-bone-300 p-6 text-center text-xs text-silver-500">
-            No matching cards found in this deck — safe to add!
-          </div>
-        ) : (
-          <div className="space-y-2.5">
-            {matchingExistingCards.map((card) => {
-              const formattedDate = new Date(card.createdAt).toLocaleDateString(
-                undefined,
-                {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                }
-              );
-              const isAddedToday =
-                card.createdAt.slice(0, 10) ===
-                new Date().toISOString().slice(0, 10);
-
-              return (
-                <div
-                  key={card.id}
-                  className="flex flex-col justify-between gap-2 rounded-xl border border-bone-200 bg-bone-50/60 p-3.5 sm:flex-row sm:items-center"
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-silver-900">
-                      {card.front}
-                    </p>
-                    <p className="text-xs text-silver-600">{card.back}</p>
-                    {card.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-0.5">
-                        {card.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="rounded-md bg-almond-silk-100 px-2 py-0.5 text-[10px] font-semibold text-almond-silk-800"
-                          >
-                            #{t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex shrink-0 flex-col items-start sm:items-end gap-1">
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-bone-200/70 px-2.5 py-1 text-[11px] font-semibold text-silver-700">
-                      <Calendar className="h-3 w-3 text-wine-plum-600" />
-                      Added {formattedDate}
-                    </span>
-                    {isAddedToday && (
-                      <span className="text-[10px] font-bold text-wine-plum-600">
-                        • Added Today
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      <div className="h-5 text-sm font-semibold text-tf-mint" aria-live="polite">
+        {statusMessage && (
+          <span className="inline-flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4" />
+            {statusMessage}
+          </span>
         )}
-      </section>
+      </div>
+
+      <hr className="tf-divider" />
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-tf-muted" />
+        <input
+          type="text"
+          aria-label="Search cards in deck"
+          placeholder="Search Cards in deck"
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setVisibleCount(PAGE_SIZE);
+          }}
+          className="w-full rounded-full bg-tf-panel py-3.5 pl-12 pr-6 text-sm font-semibold text-white placeholder:text-white focus:outline-none focus:ring-2 focus:ring-tf-sky/60"
+        />
+      </div>
+
+      {filteredCards.length === 0 ? (
+        <p className="rounded-xl bg-tf-panel p-8 text-center text-sm font-semibold text-tf-muted">
+          {deckCards.length === 0
+            ? "This deck has no cards yet — add your first one above."
+            : "No matching cards found in this deck — safe to add!"}
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-x-8 gap-y-10 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredCards.slice(0, visibleCount).map((card) => (
+              <div key={card.id} className="flex flex-col items-center gap-2.5">
+                <div className="flex aspect-square w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border-2 border-tf-sky/80 bg-tf-tile px-6 text-center">
+                  <p className="line-clamp-4 w-full break-words text-base font-bold text-white">
+                    {card.front}
+                  </p>
+                  <div className="h-px w-4/5 bg-tf-text/90" />
+                  <p className="line-clamp-4 w-full break-words text-base font-bold text-white">
+                    {card.back}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(card)}
+                  className="rounded-lg bg-tf-rose px-8 py-1 text-sm font-bold text-white transition hover:brightness-110"
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+          {filteredCards.length > visibleCount && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="tf-btn-small px-6 py-2"
+              >
+                Show more ({filteredCards.length - visibleCount} left)
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -355,9 +233,7 @@ export default function AddCardPage() {
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-center text-sm text-silver-500">
-          Loading Add Card workspace...
-        </div>
+        <div className="p-8 text-center text-sm text-tf-muted">Loading…</div>
       }
     >
       <AddCardContent />

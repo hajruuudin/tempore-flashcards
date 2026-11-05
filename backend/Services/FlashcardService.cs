@@ -463,9 +463,11 @@ public class FlashcardService
         var todayUtc = DateTime.UtcNow.Date;
         var sevenDaysAgo = todayUtc.AddDays(-6);
 
-        var recentLogs = await _reviewLogs
-            .Find(r => r.ReviewedAt >= sevenDaysAgo)
+        var firstMonth = new DateTime(todayUtc.Year, todayUtc.Month, 1).AddMonths(-5);
+        var logsSinceFirstMonth = await _reviewLogs
+            .Find(r => r.ReviewedAt >= firstMonth)
             .ToListAsync();
+        var recentLogs = logsSinceFirstMonth.Where(r => r.ReviewedAt >= sevenDaysAgo).ToList();
 
         var activity = Enumerable.Range(0, 7).Select(offset =>
         {
@@ -474,7 +476,22 @@ public class FlashcardService
             {
                 Date = date.ToString("yyyy-MM-dd"),
                 ReviewsCount = recentLogs.Count(r => r.ReviewedAt.Date == date),
-                CardsAddedCount = allCards.Count(c => c.CreatedAt.Date == date)
+                CardsAddedCount = allCards.Count(c => c.CreatedAt.Date == date),
+                HardCount = recentLogs.Count(r => r.ReviewedAt.Date == date && r.Rating == "Hard"),
+                NormalCount = recentLogs.Count(r => r.ReviewedAt.Date == date && r.Rating == "Normal"),
+                EasyCount = recentLogs.Count(r => r.ReviewedAt.Date == date && r.Rating == "Easy")
+            };
+        }).ToList();
+
+        var monthlyActivity = Enumerable.Range(0, 6).Select(offset =>
+        {
+            var monthStart = firstMonth.AddMonths(offset);
+            var monthEnd = monthStart.AddMonths(1);
+            return new MonthlyActivityPoint
+            {
+                Month = monthStart.ToString("yyyy-MM"),
+                ReviewsCount = logsSinceFirstMonth.Count(r => r.ReviewedAt >= monthStart && r.ReviewedAt < monthEnd),
+                CardsAddedCount = allCards.Count(c => c.CreatedAt >= monthStart && c.CreatedAt < monthEnd)
             };
         }).ToList();
 
@@ -496,6 +513,7 @@ public class FlashcardService
                 ? Math.Round((double)totalExactCorrect / totalExactAttempts * 100.0, 1)
                 : 0,
             Last7DaysActivity = activity,
+            Last6MonthsActivity = monthlyActivity,
             DeckBreakdown = decks
         };
     }

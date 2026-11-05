@@ -1,27 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  PlusCircle,
-  Play,
-  Download,
-  Upload,
-  Search,
-  Edit3,
-  Trash2,
-  Calendar,
-  Check,
-  X,
-  Keyboard,
-} from "lucide-react";
+import { Search } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
 import { api } from "@/lib/api";
 import { DeckSummary, Flashcard } from "@/types";
 
+const parseTags = (input: string) =>
+  input
+    .split(/[;,]/)
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+
 export default function DeckCardsViewPage() {
   const params = useParams();
+  const router = useRouter();
   const deckId = String(params?.id || "");
 
   const [deck, setDeck] = useState<DeckSummary | null>(null);
@@ -29,13 +24,11 @@ export default function DeckCardsViewPage() {
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string>("ALL");
 
-  // Inline card editing state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
   const [editTags, setEditTags] = useState("");
 
-  // CSV Import feedback
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
 
@@ -60,16 +53,15 @@ export default function DeckCardsViewPage() {
   }, [cards]);
 
   const filteredCards = useMemo(() => {
+    const q = search.toLowerCase().trim();
     return cards.filter((c) => {
       if (selectedTag !== "ALL" && !c.tags.includes(selectedTag)) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase().trim();
-        const inFront = c.front.toLowerCase().includes(q);
-        const inBack = c.back.toLowerCase().includes(q);
-        const inTags = c.tags.some((t) => t.toLowerCase().includes(q));
-        if (!inFront && !inBack && !inTags) return false;
-      }
-      return true;
+      if (!q) return true;
+      return (
+        c.front.toLowerCase().includes(q) ||
+        c.back.toLowerCase().includes(q) ||
+        c.tags.some((t) => t.toLowerCase().includes(q))
+      );
     });
   }, [cards, search, selectedTag]);
 
@@ -82,15 +74,10 @@ export default function DeckCardsViewPage() {
 
   const handleSaveEdit = async (cardId: string) => {
     if (!editFront.trim() || !editBack.trim()) return;
-    const tags = editTags
-      .split(/[;,]/)
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean);
-
     await api.updateCard(cardId, {
       front: editFront,
       back: editBack,
-      tags,
+      tags: parseTags(editTags),
       deckId,
     });
     setEditingId(null);
@@ -103,9 +90,13 @@ export default function DeckCardsViewPage() {
     await loadDeckData();
   };
 
-  const handleCsvFileChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleDeleteDeck = async () => {
+    if (!deck || !confirm(`Delete deck "${deck.name}" and all its cards?`)) return;
+    await api.deleteDeck(deck.id);
+    router.push("/");
+  };
+
+  const handleCsvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const text = await file.text();
@@ -116,311 +107,216 @@ export default function DeckCardsViewPage() {
     await loadDeckData();
   };
 
+  const statTiles = [
+    { value: deck?.totalCards ?? 0, label: "Cards" },
+    { value: deck?.cardsAddedToday ?? 0, label: "Added today" },
+    { value: deck?.totalReviews ?? 0, label: "Times reviewed" },
+    { value: `${deck?.masteryPercentage ?? 0}%`, label: "Mastery" },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header & Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-silver-500 hover:text-wine-plum-700"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to All Decks</span>
-          </Link>
-          <h1 className="mt-1 text-2xl font-bold text-silver-900">
-            {deck?.name || "Deck Overview"}
-          </h1>
-          {deck?.description && (
-            <p className="text-xs text-silver-600">{deck.description}</p>
-          )}
-        </div>
+      <PageHeader eyebrow="Deck" title={deck?.name || "Deck overview"}>
+        <Link href="/" className="tf-btn-small">
+          Back to homepage
+        </Link>
+      </PageHeader>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/add-card?deckId=${deckId}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-bone-300 bg-bone-50 px-3 py-2 text-xs font-semibold text-silver-800 hover:bg-bone-100"
-          >
-            <PlusCircle className="h-4 w-4 text-wine-plum-600" />
-            <span>Add Card</span>
-          </Link>
+      {deck?.description && (
+        <p className="text-sm text-tf-muted">{deck.description}</p>
+      )}
 
-          <button
-            onClick={() => api.exportDeckCsv(deckId, deck?.name || "deck")}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-bone-300 bg-bone-50 px-3 py-2 text-xs font-semibold text-silver-800 hover:bg-bone-100"
-          >
-            <Download className="h-4 w-4 text-almond-silk-600" />
-            <span>Export .CSV</span>
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-bone-300 bg-bone-50 px-3 py-2 text-xs font-semibold text-silver-800 hover:bg-bone-100"
-          >
-            <Upload className="h-4 w-4 text-smoky-rose-600" />
-            <span>Import .CSV</span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleCsvFileChange}
-            className="hidden"
-          />
-
-          <Link
-            href={`/review?deckId=${deckId}&mode=Standard`}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-wine-plum-700 px-3.5 py-2 text-xs font-semibold text-bone-50 hover:bg-wine-plum-800"
-          >
-            <Play className="h-3.5 w-3.5" />
-            <span>Review</span>
-          </Link>
-
-          <Link
-            href={`/review?deckId=${deckId}&mode=ExactMatch`}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-smoky-rose-700 px-3.5 py-2 text-xs font-semibold text-bone-50 hover:bg-smoky-rose-800"
-          >
-            <Keyboard className="h-3.5 w-3.5" />
-            <span>Exact Match</span>
-          </Link>
-        </div>
+      <div className="flex flex-wrap gap-2">
+        <Link href={`/add-card?deckId=${deckId}`} className="tf-btn-small py-2">
+          Add Cards
+        </Link>
+        <button
+          type="button"
+          onClick={() => api.exportDeckCsv(deckId, deck?.name || "deck")}
+          className="tf-btn-small py-2"
+        >
+          Export .CSV
+        </button>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="tf-btn-small py-2"
+        >
+          Import .CSV
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          onChange={handleCsvFileChange}
+          className="hidden"
+        />
+        <Link
+          href={`/review?deckId=${deckId}&start=1`}
+          className="rounded-lg bg-tf-mint px-4 py-2 text-xs font-bold text-white transition hover:brightness-110"
+        >
+          Review now
+        </Link>
+        <Link
+          href={`/review?deckId=${deckId}&mode=ExactMatch&start=1`}
+          className="rounded-lg bg-tf-accent px-4 py-2 text-xs font-bold text-white transition hover:brightness-110"
+        >
+          Write review
+        </Link>
+        <button
+          type="button"
+          onClick={handleDeleteDeck}
+          className="rounded-lg bg-tf-rose px-4 py-2 text-xs font-bold text-white transition hover:brightness-110 sm:ml-auto"
+        >
+          Delete deck
+        </button>
       </div>
 
       {importNotice && (
-        <div className="rounded-xl border border-wine-plum-200 bg-wine-plum-50 px-4 py-2.5 text-xs font-semibold text-wine-plum-800">
+        <div className="rounded-xl bg-tf-mint/15 px-4 py-2.5 text-sm font-semibold text-tf-mint">
           {importNotice}
         </div>
       )}
 
-      {/* Deck Mini Stats Strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div className="rounded-xl border border-bone-200 bg-white/80 p-3">
-          <span className="text-[11px] font-medium text-silver-500">
-            Total Cards
-          </span>
-          <p className="text-xl font-bold text-silver-900">
-            {deck?.totalCards ?? cards.length}
-          </p>
-        </div>
-        <div className="rounded-xl border border-bone-200 bg-white/80 p-3">
-          <span className="text-[11px] font-medium text-silver-500">
-            Added Today
-          </span>
-          <p className="text-xl font-bold text-wine-plum-700">
-            +{deck?.cardsAddedToday ?? 0}
-          </p>
-        </div>
-        <div className="rounded-xl border border-bone-200 bg-white/80 p-3">
-          <span className="text-[11px] font-medium text-silver-500">
-            Mastery
-          </span>
-          <p className="text-xl font-bold text-almond-silk-700">
-            {deck?.masteryPercentage ?? 0}%
-          </p>
-        </div>
-        <div className="rounded-xl border border-bone-200 bg-white/80 p-3">
-          <span className="text-[11px] font-medium text-silver-500">
-            Total Reviews
-          </span>
-          <p className="text-xl font-bold text-silver-900">
-            {deck?.totalReviews ?? 0}
-          </p>
-        </div>
-        <div className="rounded-xl border border-bone-200 bg-white/80 p-3 col-span-2 sm:col-span-1">
-          <span className="text-[11px] font-medium text-silver-500">
-            E / N / H Split
-          </span>
-          <p className="text-sm font-bold text-silver-900 mt-1">
-            {deck?.easyCount ?? 0}E • {deck?.normalCount ?? 0}N •{" "}
-            {deck?.hardCount ?? 0}H
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {statTiles.map((tile) => (
+          <div
+            key={tile.label}
+            className="tf-tile flex flex-col items-center justify-center px-3 py-4 text-center"
+          >
+            <span className="text-2xl font-bold text-white">{tile.value}</span>
+            <span className="text-sm font-light">{tile.label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="rounded-2xl border border-bone-200 bg-white/85 p-5 shadow-sm space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-silver-400" />
-            <input
-              type="text"
-              placeholder="Filter cards in this deck by front, back, or tag..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl border border-bone-300 bg-bone-50 pl-9 pr-3.5 py-2 text-xs text-silver-900 focus:border-wine-plum-600 focus:outline-none"
-            />
-          </div>
+      <hr className="tf-divider" />
 
-          {allTags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                onClick={() => setSelectedTag("ALL")}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                  selectedTag === "ALL"
-                    ? "bg-silver-800 text-bone-50"
-                    : "bg-bone-100 text-silver-700 hover:bg-bone-200"
-                }`}
-              >
-                All Tags
-              </button>
-              {allTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => setSelectedTag(tag)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                    selectedTag === tag
-                      ? "bg-wine-plum-700 text-bone-50"
-                      : "bg-almond-silk-100 text-almond-silk-800 hover:bg-almond-silk-200"
-                  }`}
-                >
-                  #{tag}
-                </button>
-              ))}
-            </div>
-          )}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-tf-muted" />
+        <input
+          type="text"
+          aria-label="Search cards in deck"
+          placeholder="Search Cards in deck"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-full bg-tf-panel py-3.5 pl-12 pr-6 text-sm font-semibold text-white placeholder:text-white focus:outline-none focus:ring-2 focus:ring-tf-sky/60"
+        />
+      </div>
+
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {["ALL", ...allTags].map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setSelectedTag(tag)}
+              className={`rounded-lg px-3 py-1 text-xs font-bold text-white transition ${
+                selectedTag === tag
+                  ? "bg-tf-accent"
+                  : "bg-tf-tile hover:bg-tf-tile-hover"
+              }`}
+            >
+              {tag === "ALL" ? "All tags" : `#${tag}`}
+            </button>
+          ))}
         </div>
+      )}
 
-        {/* Cards List */}
-        {filteredCards.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-bone-300 p-8 text-center text-xs text-silver-500">
-            No flashcards match your filter in this deck.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredCards.map((card) => {
-              const isEditing = editingId === card.id;
-              const dateAdded = new Date(card.createdAt).toLocaleDateString(
-                undefined,
-                {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                }
-              );
-
-              return (
-                <div
-                  key={card.id}
-                  className="rounded-xl border border-bone-200 bg-bone-50/50 p-4 transition hover:bg-white"
-                >
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="text-[11px] font-bold uppercase text-silver-600">
-                            Front
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={editFront}
-                            onChange={(e) => setEditFront(e.target.value)}
-                            className="mt-1 w-full rounded-lg border border-bone-300 bg-white p-2 text-xs text-silver-900"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-bold uppercase text-silver-600">
-                            Back
-                          </label>
-                          <textarea
-                            rows={2}
-                            value={editBack}
-                            onChange={(e) => setEditBack(e.target.value)}
-                            className="mt-1 w-full rounded-lg border border-bone-300 bg-white p-2 text-xs text-silver-900"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <input
-                          type="text"
-                          placeholder="Tags (comma separated)"
-                          value={editTags}
-                          onChange={(e) => setEditTags(e.target.value)}
-                          className="flex-1 rounded-lg border border-bone-300 bg-white px-3 py-1.5 text-xs text-silver-900"
-                        />
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-bone-200 px-3 py-1.5 text-xs font-semibold text-silver-700"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => handleSaveEdit(card.id)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-wine-plum-700 px-3 py-1.5 text-xs font-semibold text-bone-50"
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                            Save
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                      <div className="space-y-1.5 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded bg-wine-plum-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-wine-plum-800">
-                            Front
-                          </span>
-                          <h3 className="text-sm font-bold text-silver-900">
-                            {card.front}
-                          </h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded bg-bone-200 px-1.5 py-0.5 text-[10px] font-bold uppercase text-silver-700">
-                            Back
-                          </span>
-                          <p className="text-xs font-medium text-silver-700">
-                            {card.back}
-                          </p>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          {card.tags.map((t) => (
-                            <span
-                              key={t}
-                              className="rounded-md bg-almond-silk-100 px-2 py-0.5 text-[10px] font-semibold text-almond-silk-800"
-                            >
-                              #{t}
-                            </span>
-                          ))}
-                          <span className="inline-flex items-center gap-1 text-[11px] text-silver-500">
-                            <Calendar className="h-3 w-3" />
-                            Added {dateAdded}
-                          </span>
-                          {card.lastDifficulty && (
-                            <span className="rounded-md bg-bone-200/80 px-2 py-0.5 text-[10px] font-semibold text-silver-700">
-                              Last: {card.lastDifficulty} ({card.reviewCount}{" "}
-                              reviews)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 self-end sm:self-start">
-                        <button
-                          onClick={() => startEditing(card)}
-                          className="rounded-lg p-1.5 text-silver-500 hover:bg-bone-200 hover:text-silver-900"
-                          title="Edit card"
+      {filteredCards.length === 0 ? (
+        <p className="rounded-xl bg-tf-panel p-8 text-center text-sm font-semibold text-tf-muted">
+          {cards.length === 0
+            ? "This deck has no cards yet."
+            : "No cards match your search."}
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {filteredCards.map((card) =>
+            editingId === card.id ? (
+              <li key={card.id} className="space-y-3 rounded-xl bg-tf-panel p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <textarea
+                    rows={2}
+                    aria-label="Front"
+                    value={editFront}
+                    onChange={(e) => setEditFront(e.target.value)}
+                    className="tf-input resize-none text-sm"
+                  />
+                  <textarea
+                    rows={2}
+                    aria-label="Back"
+                    value={editBack}
+                    onChange={(e) => setEditBack(e.target.value)}
+                    className="tf-input resize-none text-sm"
+                  />
+                </div>
+                <input
+                  type="text"
+                  aria-label="Tags"
+                  placeholder="Tags (comma separated)"
+                  value={editTags}
+                  onChange={(e) => setEditTags(e.target.value)}
+                  className="tf-input py-3 text-sm"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(null)}
+                    className="rounded-lg bg-tf-rose px-5 py-1.5 text-sm font-bold text-white hover:brightness-110"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveEdit(card.id)}
+                    className="rounded-lg bg-tf-mint px-5 py-1.5 text-sm font-bold text-white hover:brightness-110"
+                  >
+                    Save
+                  </button>
+                </div>
+              </li>
+            ) : (
+              <li
+                key={card.id}
+                className="flex flex-col gap-3 rounded-xl bg-tf-row px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="break-words font-semibold text-white">{card.front}</p>
+                  <p className="break-words text-sm text-tf-muted">{card.back}</p>
+                  {card.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {card.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-md bg-tf-tile px-2 py-0.5 text-[10px] font-bold text-tf-sky"
                         >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCard(card.id)}
-                          className="rounded-lg p-1.5 text-silver-500 hover:bg-smoky-rose-100 hover:text-smoky-rose-700"
-                          title="Delete card"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                          #{t}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEditing(card)}
+                    className="tf-btn-small w-24"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteCard(card.id)}
+                    className="w-24 rounded-lg bg-tf-rose py-1.5 text-xs font-bold text-white hover:brightness-110"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            )
+          )}
+        </ul>
+      )}
     </div>
   );
 }

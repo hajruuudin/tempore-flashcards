@@ -49,6 +49,15 @@ export interface DailyActivityPoint {
   date: string;
   reviewsCount: number;
   cardsAddedCount: number;
+  hardCount?: number;
+  normalCount?: number;
+  easyCount?: number;
+}
+
+export interface MonthlyActivityPoint {
+  month: string;
+  reviewsCount: number;
+  cardsAddedCount: number;
 }
 
 export interface OverallStats {
@@ -63,6 +72,7 @@ export interface OverallStats {
   easyTotal: number;
   exactMatchAccuracy: number;
   last7DaysActivity: DailyActivityPoint[];
+  last6MonthsActivity?: MonthlyActivityPoint[];
   deckBreakdown: DeckSummary[];
 }
 

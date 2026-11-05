@@ -1,11 +1,11 @@
 {
-  "name": "KumbhCards — Minimal Flashcards PWA",
-  "short_name": "KumbhCards",
+  "name": "TemporeFlashcards — Minimal Flashcards App",
+  "short_name": "TemporeFlashcards",
   "description": "Minimalist progressive web application for flashcard mastery, exact-match typing review, and deck analytics.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8f4ed",
-  "theme_color": "#6c2d45",
+  "background_color": "#0c2124",
+  "theme_color": "#0c2124",
   "orientation": "portrait-primary",
   "icons": [
     {

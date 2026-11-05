@@ -47,6 +47,16 @@ public class DailyActivityPoint
     public string Date { get; set; } = string.Empty; // YYYY-MM-DD
     public int ReviewsCount { get; set; }
     public int CardsAddedCount { get; set; }
+    public int HardCount { get; set; }
+    public int NormalCount { get; set; }
+    public int EasyCount { get; set; }
+}
+
+public class MonthlyActivityPoint
+{
+    public string Month { get; set; } = string.Empty; // YYYY-MM
+    public int ReviewsCount { get; set; }
+    public int CardsAddedCount { get; set; }
 }
 
 public class OverallStatsDto
@@ -62,6 +72,7 @@ public class OverallStatsDto
     public int EasyTotal { get; set; }
     public double ExactMatchAccuracy { get; set; }
     public List<DailyActivityPoint> Last7DaysActivity { get; set; } = new();
+    public List<MonthlyActivityPoint> Last6MonthsActivity { get; set; } = new();
     public List<DeckSummaryDto> DeckBreakdown { get; set; } = new();
 }
 

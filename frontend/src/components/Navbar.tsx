@@ -2,41 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Layers, PlusCircle, Play, BarChart3, Home } from "lucide-react";
+import { Home, PlusSquare, Inbox, BarChart3 } from "lucide-react";
+
+const navItems = [
+  { href: "/", label: "Homepage", icon: Home },
+  { href: "/add-card", label: "Add Cards", icon: PlusSquare },
+  { href: "/review", label: "Review", icon: Inbox },
+  { href: "/stats", label: "Stats", icon: BarChart3 },
+];
 
 export default function Navbar() {
   const pathname = usePathname();
 
-  const navItems = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/add-card", label: "Add Card", icon: PlusCircle },
-    { href: "/review", label: "Review", icon: Play },
-    { href: "/stats", label: "Stats", icon: BarChart3 },
-  ];
-
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-bone-200 bg-bone-50/90 backdrop-blur-md">
-      <div className="mx-auto flex w-full lg:w-[60%] items-center justify-between px-4 py-3.5 sm:px-6">
-        {/* App Logo on the Left */}
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 text-wine-plum-800 transition hover:opacity-90"
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-wine-plum-700 text-bone-50 shadow-sm">
-            <Layers className="h-5 w-5" />
-          </div>
+    <header className="sticky top-0 z-40 w-full border-b border-tf-line/70 bg-tf-ink/95 backdrop-blur-md">
+      <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-tf-sky" />
           <div className="flex flex-col">
-            <span className="text-lg font-bold tracking-tight text-silver-900 leading-none">
-              Kumbh<span className="text-wine-plum-600">Cards</span>
+            <span className="text-xl font-bold leading-none tracking-tight text-white">
+              Tempore<span className="text-tf-sky">Flashcards</span>
             </span>
-            <span className="text-[11px] font-medium text-silver-500">
-              Minimal Flashcards PWA
+            <span className="mt-1 hidden text-[11px] font-light text-tf-muted sm:block">
+              Minimal Flashcards App
             </span>
           </div>
         </Link>
 
-        {/* Navbar Links Justified to the Right */}
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex w-full max-w-[460px] items-stretch gap-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -48,14 +41,16 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs sm:text-sm font-semibold transition-all ${
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+                className={`flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-bold text-white transition-all ${
                   isActive
-                    ? "bg-wine-plum-700 text-bone-50 shadow-sm"
-                    : "text-silver-700 hover:bg-bone-200/70 hover:text-silver-900"
+                    ? "flex-[2.2] bg-tf-accent"
+                    : "flex-1 bg-tf-tile hover:bg-tf-tile-hover"
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                <span className="hidden xs:inline sm:inline">{item.label}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                {isActive && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}

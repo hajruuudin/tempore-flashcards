@@ -1,8 +1,10 @@
 import {
+  DailyActivityPoint,
   DeckSummary,
   DifficultyRating,
   Flashcard,
   Folder,
+  MonthlyActivityPoint,
   OverallStats,
   SubmitReviewPayload,
   SubmitReviewResult,
@@ -568,22 +570,39 @@ export const api = {
       const todayIso = new Date().toISOString();
       const deckBreakdown = buildLocalDeckSummaries(store);
 
-      const days: {
-        date: string;
-        reviewsCount: number;
-        cardsAddedCount: number;
-      }[] = [];
+      const days: DailyActivityPoint[] = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().slice(0, 10);
+        const dayLogs = store.reviewLogs.filter(
+          (l) => l.reviewedAt.slice(0, 10) === dateStr
+        );
         days.push({
           date: dateStr,
-          reviewsCount: store.reviewLogs.filter(
-            (l) => l.reviewedAt.slice(0, 10) === dateStr
-          ).length,
+          reviewsCount: dayLogs.length,
           cardsAddedCount: store.cards.filter(
             (c) => c.createdAt.slice(0, 10) === dateStr
+          ).length,
+          hardCount: dayLogs.filter((l) => l.rating === "Hard").length,
+          normalCount: dayLogs.filter((l) => l.rating === "Normal").length,
+          easyCount: dayLogs.filter((l) => l.rating === "Easy").length,
+        });
+      }
+
+      const months: MonthlyActivityPoint[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - i);
+        const monthStr = d.toISOString().slice(0, 7);
+        months.push({
+          month: monthStr,
+          reviewsCount: store.reviewLogs.filter(
+            (l) => l.reviewedAt.slice(0, 7) === monthStr
+          ).length,
+          cardsAddedCount: store.cards.filter(
+            (c) => c.createdAt.slice(0, 7) === monthStr
           ).length,
         });
       }
@@ -616,6 +635,7 @@ export const api = {
             ? Math.round((exactCorrect / exactAttempts) * 1000) / 10
             : 0,
         last7DaysActivity: days,
+        last6MonthsActivity: months,
         deckBreakdown,
       };
     }),

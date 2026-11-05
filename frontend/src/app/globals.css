@@ -3,29 +3,58 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #f8f4ed;
-  --text-primary: #1d1616;
+  color-scheme: dark;
 }
 
 body {
-  background-color: #f8f4ed; /* bone-50 */
-  color: #1d1616; /* silver-900 */
+  background-color: #0c2124; /* tf-ink */
+  color: #f3efe9; /* tf-text */
   font-family: var(--font-kumbh-sans), "Kumbh Sans", -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 /* Custom subtle scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #f0e9db;
+  background: #0c2124;
 }
 ::-webkit-scrollbar-thumb {
-  background: #bda8a8;
+  background: #1c5360;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #916e6e;
+  background: #2e8fa3;
+}
+
+@layer components {
+  .tf-panel {
+    @apply rounded-2xl bg-tf-panel p-5 sm:p-8;
+  }
+  .tf-tile {
+    @apply rounded-xl bg-tf-tile text-tf-text;
+  }
+  .tf-input {
+    @apply w-full rounded-xl bg-tf-tile px-5 py-4 text-base font-semibold text-tf-text placeholder:text-tf-text/80 focus:outline-none focus:ring-2 focus:ring-tf-sky/60;
+  }
+  .tf-btn {
+    @apply inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .tf-btn-primary {
+    @apply tf-btn bg-tf-mint;
+  }
+  .tf-btn-danger {
+    @apply tf-btn bg-tf-rose;
+  }
+  .tf-btn-small {
+    @apply inline-flex items-center justify-center rounded-lg bg-tf-tile px-4 py-1.5 text-xs font-bold text-tf-text transition hover:bg-tf-tile-hover;
+  }
+  .tf-eyebrow {
+    @apply text-xs font-medium uppercase tracking-[0.18em] text-tf-text;
+  }
+  .tf-divider {
+    @apply border-0 border-t border-tf-line/70;
+  }
 }
